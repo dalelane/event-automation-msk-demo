@@ -1,0 +1,151 @@
+body {
+    padding: 1em;
+}
+.byline {
+    font-size: 0.8em;
+    font-style: italic;
+}
+.byline > a {
+    text-decoration: none;
+    color: navy;
+    font-weight: bold;
+}
+.byline > a:hover {
+    text-decoration: underline;
+}
+.date {
+    font-size: 0.8em;
+}
+p.scenario-intro {
+    font-weight: bold;
+}
+
+p.scenario-intro > strong {
+    color: navy;
+    font-weight: bolder;
+}
+
+details.scenario > summary {
+    padding-bottom: 1em;
+    cursor: pointer;
+}
+
+details.scenario > summary:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+details.step[open] > summary {
+    text-decoration: none;
+}
+details.step[open] > summary:hover {
+    text-decoration: none;
+}
+
+
+details.step {
+    background-color: rgb(212, 227, 227);
+}
+
+details.step > summary > span.icon {
+    width: fit-content;
+    height: fit-content;
+    transition: all 0.3s;
+    padding-left: 1em;
+    margin-left: auto;
+    margin-right: 0;
+}
+
+details.step[open] > summary > span.icon {
+    transform: rotate(90deg);
+    transform-origin: top right;
+    color: rgb(0, 0, 226);
+}
+
+details.step[open] > summary {
+    border-bottom: thin black solid;
+}
+
+details.step > summary {
+    border-top: thin black solid;
+}
+
+details.step > summary:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+details.scenario > details.step:last-child > summary {
+    border-bottom: thin black solid;
+}
+
+details.step > summary {
+    display: flex;
+    cursor: pointer;
+    padding: 0.8em;
+    background-color: white;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-size: 1.1em;
+}
+
+details.step > summary::-webkit-details-marker {
+    display: none;
+}
+
+details.step > p {
+    padding: 0 1em 1em 2em;
+    margin: 0;
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+
+details.step > p:last-child {
+    padding-bottom: 2em;
+}
+
+details.step > div.screenshot {
+    margin: 1em;
+    width: calc(100% - 2em);
+    max-width: 800px;
+}
+
+details.step > div.screenshot img {
+    border: thin black solid;
+    width: 100%;
+}
+
+details.step > div.screenshot > div.imagetext {
+    font-size: 0.65em;
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+    font-style: italic;
+    color: rgb(0, 0, 170);
+    margin: 0;
+    padding: 0;
+}
+
+details.step > pre {
+    margin-left: 2em;
+    padding: 1em;
+    background-color: rgb(253, 218, 79);
+    color: brown;
+    text-align: left;
+    font-size: smaller;
+    margin-top: -1em;
+    overflow-x: scroll;
+}
+
+details.step > p > code {
+    background-color: rgb(253, 218, 79);
+    color: brown;
+    font-weight: bold;
+    padding: 0.2em;
+}
+
+details.step > p > strong {
+    color: navy;
+}
+
+img.arch-diagram {
+    max-width: 1000px;
+    width: calc(100% - 2px);
+    border: thin black solid;
+}

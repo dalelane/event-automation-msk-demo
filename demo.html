@@ -1,0 +1,2338 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Using IBM Event Automation with Amazon MSK</title>
+        <link rel="stylesheet" type="text/css" href="style.css" />
+    </head>
+    <body>
+        <h1>Using IBM Event Automation with Amazon MSK</h1>
+        <hr/>
+        <div class="byline">Blog post and demo by <a href="https://github.com/chrispatmore">Chris Patmore</a> (Software Developer, IBM Event Automation) and <a href="https://dalelane.co.uk">Dale Lane</a> (Chief Architect, IBM Event Automation)</div>
+        <div class="date">25 Oct 2023</div>
+        <hr/>
+        <div>
+            <p>
+                <a href="https://www.ibm.com/products/event-automation">IBM Event Automation</a> helps companies to accelerate their event-driven projects wherever businesses are on their journey. It provides multiple components (Event Streams, Event Endpoint Management, and Event Processing) which together lay the foundation of an event-driven architecture that can unlock the value of the streams of events that businesses have.
+            </p>
+            <p>
+                A key goal of Event Automation is to be composable. The three components can be used together, or they can each be used to extend and enhance an existing event-driven deployment.
+            </p>
+            <p>
+                Amazon MSK (Managed Streaming for Kafka) is a hosted, managed Kafka service available in Amazon Web Services. If a business has started their event-driven journey using MSK, then components from Event Automation can help to enhance this. This could be by offering management and governance of their MSK topics. And it could be by providing an intuitive low-code authoring canvas to process the events on their MSK topics.
+            </p>
+            <p>
+                Working with Amazon MSK is a nice example of the benefits of the composability of Event Automation, by helping businesses to get more value from their existing MSK topics.
+            </p>
+            <p>
+                In this blog post, we want to show a few different examples of where this can be done. For each example, we'll provide a high-level diagram and description. We'll also share a demonstration that we created to show it in action.
+            </p>
+            <p>
+                <em>(Click on the descriptions for detailed step-by-step instructions and screenshots of how we built each demo.)</em>
+            </p>
+        </div>
+        <div>
+            <p>
+                <a href="./diagrams/ep.svg" target="diagrams"><img alt="using Event Processing with Amazon MSK" class="arch-diagram" src="./diagrams/ep.svg"/></a>
+            </p>
+            <p class="scenario-intro">
+                To start with, we demonstrated how <strong>Event Processing</strong> can be used with Amazon MSK. We showed how Event Processing, based on Apache Flink, can help businesses to identify insights from the events on their MSK topics through an easy-to-use authoring canvas.
+            </p>
+            <p>
+                The diagram above is a simplified description of what we created. We created an MSK cluster in AWS, set up a few topics, and then started a demonstration app producing a stream of events to them. This gave us a simplified example of a live MSK cluster.
+            </p>
+            <p>
+                We then accessed this Amazon MSK cluster from an instance of Event Processing (that was running in a Red Hat OpenShift cluster in IBM Cloud). We used Event Processing to create a range of stateful stream processing flows.
+            </p>
+            <p>
+                This showed how the events on MSK topics can be processed where they are, without requiring an instance of Event Streams or for topics to be mirrored into a Kafka cluster also running in OpenShift. Using the low-code authoring canvas with Kafka topics that you already have, wherever they are, is a fantastic event-driven architecture enabler.
+            </p>
+            <details class="scenario">
+                <summary>
+                    How we created a demonstration of this...
+                </summary>
+                <details class="step">
+                    <summary>
+                        We started by creating an Amazon MSK cluster.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-001.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-001.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We opened the Amazon Web Services admin console, and went to the MSK (Managed Streaming for Apache Kafka) service.
+                    </p>
+                    <p>
+                        To start, we clicked <strong>Create cluster</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-002.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-002.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We opted for the <strong>Custom create</strong> option so we could customize our MSK cluster.
+                    </p>
+                    <p>
+                        We called the cluster <code>loosehanger-msk</code> because we're basing this demonstration on "Loosehanger" - a fictional clothes retailer that we have <a href="https://github.com/IBM/kafka-connect-loosehangerjeans-source/">a data generator</a> for.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-003.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-003.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose a <strong>Provisioned</strong> (rather than serverless) Kafka cluster type, and chose the latest version of Kafka that Amazon offered (<strong>3.5.1</strong>).
+                    </p>
+                    <p>
+                        Because we only needed an MSK cluster for this short demo, we went with the <strong>small</strong> broker type.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-004.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-004.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We went with the default, and recommended, number of zones to distribute the Kafka brokers across: <strong>three</strong>.
+                    </p>
+                    <p>
+                        Because we only planned to run a few applications with a small number of topics, we didn't need a lot of storage - we gave each broker <strong>5GB</strong> of storage.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-005.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-005.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Rather than go with the default Kafka configuration, we clicked <strong>Create configuration</strong> to prepare a new custom config.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-006.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-006.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave the config a name similar to the MSK cluster itself, based on our <a href="https://github.com/IBM/kafka-connect-loosehangerjeans-source/">scenario of the fictional clothes retailer</a>, Loosehanger.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-007.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-007.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We started with a config that would make it easy for us to set up the topics.
+                    </p>
+                    <pre>auto.create.topics.enable=true
+default.replication.factor=3
+min.insync.replicas=2
+num.io.threads=8
+num.network.threads=5
+num.partitions=1
+num.replica.fetchers=2
+replica.lag.time.max.ms=30000
+socket.receive.buffer.bytes=102400
+socket.request.max.bytes=104857600
+socket.send.buffer.bytes=102400
+unclean.leader.election.enable=true
+zookeeper.session.timeout.ms=18000
+allow.everyone.if.no.acl.found=true</pre>
+                    <p>
+                        The key value we added to the default config was the <code>allow.everyone.if.no.acl.found</code> one, to make it clear that we would start creating topics before setting up auth or access control lists.
+                    </p>
+                    <p>
+                        We clicked <strong>Create</strong> to create this configuration. Once back on the MSK cluster settings screen, we chose this custom config and clicked <strong>Next</strong> to move on to the next step.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-008.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-008.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Networking was next.
+                    </p>
+                    <p>
+                        We clicked <strong>Create VPC</strong> to prepare a new virtual networking environment for our demonstration.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-009.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-009.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We opted for the <strong>VPC and more</strong> option so we could set this up in a way that would support public access to the MSK cluster.
+                    </p>
+                    <p>
+                        We chose <strong>three availability zones</strong> to match the config we used for the MSK cluster - this would allow us to have a separate AZ for each MSK broker.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-010.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-010.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We went with three public subnets and no private subnets, again as this would allow us to enable public access to the MSK cluster.
+                    </p>
+                    <p>
+                        We left the default DNS options enabled so that we could have DNS hostnames for our addresses.
+                    </p>
+                    <p>
+                        Next we clicked <strong>Create VPC</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-011.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-011.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We verified that the VPC resources we requested were created and then closed this window.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-012.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-012.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Back on the <strong>Networking</strong> step of the MSK cluster creation wizard, we were now able to choose our new VPC, and select the zones and subnets. The match of three availability zones for the MSK cluster, and three availability zones for the VPC meant it was just a matter of choosing a different zone for each broker.
+                    </p>
+                    <p>
+                        We wanted to enable public access, but this can't be done at cluster creation time, so this remained on <strong>Off</strong> for now.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-013.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-013.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The final networking step option is to create security groups. The default option here was fine for our purposes, so we left this as-is.
+                    </p>
+                    <p>
+                        We clicked <strong>Next</strong> to move onto the next step.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-014.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-014.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The next step was to configure the security options for the MSK cluster.
+                    </p>
+                    <p>
+                        We started with disabling auth, as unauthenticated access would make it easy for us to set up our cluster and topics. We enabled auth after we had the cluster the way we wanted it.
+                    </p>
+                    <p>
+                        For the same reason, we also left client TLS disabled as well. We turned this on later when we enabled public access to the cluster.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-015.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-015.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The default encryption key was fine for encrypting the broker storage, so we left this as-is and clicked <strong>Next</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-016.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-016.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The next step is to configure monitoring. As a short-lived demo cluster, we didn't have monitoring requirements, so we left this on the default basic option and clicked <strong>Next</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-017.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-017.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Our MSK cluster specification was ready to go, so we clicked <strong>Create</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-018.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-018.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We had to wait for the MSK cluster to provision.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-019.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-019.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Once it was ready, we could move on to the next stage which was to create topics.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Next, we created some Kafka topics that we would use with Event Automation, and set up some credentials for accessing them.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-020.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-020.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Amazon MSK doesn't offer admin controls for the Kafka cluster, so we needed somewhere that we could run a Kafka admin client.
+                    </p>
+                    <p>
+                        The simplest option was to create an EC2 server where we could run Kafka admin commands from. We went to the EC2 service within AWS, and clicked <strong>Launch instance</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-021.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-021.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We kept with our naming theme of "Loosehanger" to represent our fictional clothes retailer.
+                    </p>
+                    <p>
+                        This would only be a short-lived server, that we would keep around long enough to run a few Kafka admin commands, so quick and simple was the priority. We went with the <strong>Amazon Linux</strong> quick start option.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-022.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-022.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Again, as this would only be a short-lived server running a small number of command-line scripts, a small, free-tier-eligible instance type was fit for our needs.
+                    </p>
+                    <p>
+                        We didn't need to create a key pair as we weren't planning to make any external connections to the EC2 server.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-023.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-023.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We did need to create a new security group, in order to be able to enable terminal access to the server.
+                    </p>
+                    <p>
+                        For the same reason, we needed to assign a public IP address to the server, as that is needed for web console access to the server's shell.
+                    </p>
+                    <p>
+                        With this configured, we clicked <strong>Launch instance</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-024.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-024.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        There was one more modification we needed to make to the server, so we clicked on the instance name at the top of the page to access the server instance details.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-025.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-025.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to modify the firewall rules to allow access from the EC2 instance to our MSK cluster, so we needed to modify the security groups.
+                    </p>
+                    <p>
+                        In the top-right menu, we navigated to <strong>Change security groups</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-026.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-026.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose the security group that was created for the MSK cluster.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-027.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-027.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Having both security groups gave our EC2 instance the permissions needed to let us connect from a web console, as well the permissions needed for it to connect to Kafka.
+                    </p>
+                    <p>
+                        Next, we clicked <strong>Save</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-028.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-028.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We were now ready to access the instance, so we clicked <strong>Connect</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-029.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-029.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We went with <strong>EC2 Instance Connect</strong> as it offers a web-based terminal console with nothing to install.
+                    </p>
+                    <p>
+                        To open the console, we clicked <strong>Connect</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-030.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-030.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        This gave us a shell in our Amazon Linux server.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-031.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-031.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We started by installing Java, as this is required for running the Kafka admin tools.
+                    </p>
+                    <pre>sudo yum -y install java-11</pre>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-032.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-032.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Next, we downloaded Kafka.
+                    </p>
+                    <pre>curl -o kafka.tgz https://downloads.apache.org/kafka/3.5.1/kafka_2.13-3.5.1.tgz
+tar -zxf kafka.tgz
+cd kafka_2.13-3.5.1</pre>
+                    <p>
+                        We matched the version of the MSK cluster (but it would have still worked if we had picked a different version).
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-033.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-033.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        To run the Kafka admin tools, we first needed to get connection details for the MSK cluster.
+                    </p>
+                    <p>
+                        From the MSK cluster page, we clicked <strong>View client information</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-034.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-034.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We copied both the bootstrap address (labelled as the <strong>Private endpoint</strong> in the <strong>Bootstrap servers</strong> section) and the <strong>Plaintext ZooKeeper</strong> address.
+                    </p>
+                    <p>
+                        Notice that as we hadn't yet enabled public access, these were both private DNS addresses, but our EC2 server (running in the same VPC) would be able to access them.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-035.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-035.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We created <code>BOOTSTRAP</code> and <code>ZOOKEEPER</code> environment variables using our copied values.
+                    </p>
+                    <pre>export BOOTSTRAP=b-3.loosehangermsk.krrnez.c3.kafka.eu-west-1.amazonaws.com:9092,b-1.loosehangermsk.krrnez.c3.kafka.eu-west-1.amazonaws.com:9092,b-2.loosehangermsk.krrnez.c3.kafka.eu-west-1.amazonaws.com:9092
+export ZOOKEEPER=z-1.loosehangermsk.krrnez.c3.kafka.eu-west-1.amazonaws.com:2181,z-2.loosehangermsk.krrnez.c3.kafka.eu-west-1.amazonaws.com:2181,z-3.loosehangermsk.krrnez.c3.kafka.eu-west-1.amazonaws.com:2181</pre>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-036.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-036.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        This was enough to let us create the topics we needed for our demonstration. We created a set of topics that are needed for the initial set of <a href="https://ibm.github.io/event-automation/tutorials/">IBM Event Automation tutorials</a>.
+                    </p>
+                    <pre>for TOPIC in ORDERS.NEW CANCELLATIONS DOOR.BADGEIN STOCK.MOVEMENT CUSTOMERS.NEW SENSOR.READINGS
+do
+    ./bin/kafka-topics.sh --create \
+        --bootstrap-server $BOOTSTRAP \
+        --replication-factor 3 \
+        --partitions 3 \
+        --config retention.bytes=25000000 \
+        --topic $TOPIC
+done</pre>
+                    <p>
+                        You can see a list of these topics, together with a description of the events that we would be producing to them, in the <a href="https://github.com/IBM/kafka-connect-loosehangerjeans-source/">documentation for the data generator</a> we use for these demos.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-037.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-037.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        With the topics created, it was time to start setting up authentication.
+                    </p>
+                    <p>
+                        We started by setting up permissions for a user able to produce and consume events to all of our topics.
+                    </p>
+                    <p>
+                        We named this user <code>producer</code>.
+                    </p>
+                    <pre>for TOPIC in ORDERS.NEW CANCELLATIONS DOOR.BADGEIN STOCK.MOVEMENT CUSTOMERS.NEW SENSOR.READINGS
+do
+    ./bin/kafka-acls.sh --add \
+        --authorizer-properties zookeeper.connect=$ZOOKEEPER \
+        --allow-principal "User:producer" \
+        --operation Write \
+        --topic $TOPIC
+    ./bin/kafka-acls.sh --add \
+        --authorizer-properties zookeeper.connect=$ZOOKEEPER \
+        --allow-principal "User:producer" \
+        --operation Read \
+        --group="*" \
+        --topic $TOPIC
+    ./bin/kafka-acls.sh --add \
+        --authorizer-properties zookeeper.connect=$ZOOKEEPER \
+        --allow-principal "User:producer" \
+        --operation Describe \
+        --group="*" \
+        --topic $TOPIC
+done</pre>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-038.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-038.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Next, we set up more limited permissions, for a second user that would only be allowed to consume events from our topics.
+                    </p>
+                    <p>
+                        We named this user <code>consumer</code>.
+                    </p>
+                    <pre>for TOPIC in ORDERS.NEW CANCELLATIONS DOOR.BADGEIN STOCK.MOVEMENT CUSTOMERS.NEW SENSOR.READINGS
+do
+    ./bin/kafka-acls.sh --add \
+        --authorizer-properties zookeeper.connect=$ZOOKEEPER \
+        --allow-principal "User:consumer" \
+        --operation Read \
+        --group="*" \
+        --topic $TOPIC
+    ./bin/kafka-acls.sh --add \
+        --authorizer-properties zookeeper.connect=$ZOOKEEPER \
+        --allow-principal "User:consumer" \
+        --operation Describe \
+        --group="*" \
+        --topic $TOPIC
+done</pre>
+                    <p>
+                        We didn't have any Kafka administration left to do, so we were finished with this EC2 admin instance. In the interests of cleaning up, and keeping the demo running costs down, we terminated the EC2 instance and deleted the new security group we created for it.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Then we enabled public access to our MSK cluster.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-039.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-039.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We started by turning on security. We went back to the MSK cluster instance page, and clicked the <strong>Properties</strong> tab.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-040.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-040.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We scrolled to the <strong>Security settings</strong> section and clicked <strong>Edit</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-041.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-041.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We enabled <strong>SASL/SCRAM authentication</strong>. This automatically enabled client TLS encryption as well.
+                    </p>
+                    <p>
+                        We clicked <strong>Save changes</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-042.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-042.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to wait for the cluster to update.
+                    </p>
+                    <p>
+                        (This took over thirty minutes, so this was a good point to take a break!)
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-043.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-043.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The prompt at the top of the MSK instance page showed that the next step was to set up secrets with username/passwords for Kafka clients to use.
+                    </p>
+                    <p>
+                        We clicked <strong>Associate secrets</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-044.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-044.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We wanted two secrets: one for our <code>producer</code> user, the other for <code>consumer</code> user - each containing the username and password.
+                    </p>
+                    <p>
+                        We clicked <strong>Create secret</strong> to get started.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-045.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-045.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose the <strong>Other</strong> type of secret, and used the <strong>Plaintext</strong> tab to create a JSON payload with a random password we generated for the producer user.
+                    </p>
+                    <pre>{
+    "username": "producer",
+    "password": "BE9rEMxwfC0eD7IQcVzC4s9csceBsKi3Enzi2wiY9B8uw73KsoNyR33vfFBKFozv"
+}</pre>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-046.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-046.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We clicked <strong>Add new key</strong> to create a custom encryption key for this demo.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-047.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-047.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The default key type and usage were fine for our needs.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-048.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-048.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave it a name, again keeping with our "Loosehanger" clothing retailer scenario.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-049.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-049.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-050.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-050.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We set the permissions to make me the administrator of the key.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-051.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-051.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        With the new key created, we could choose it to use this new encryption key for the secret with our new producer credentials.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-052.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-052.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        To use the secret for Amazon MSK credentials, we needed to give the secret a name starting with <code>AmazonMSK_</code>.
+                    </p>
+                    <p>
+                        We went with <code>AmazonMSK_producer</code>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-053.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-053.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We clicked through the remaining steps until we could click <strong>Store</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-054.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-054.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to repeat this to create a secret for our consumer user.
+                    </p>
+                    <p>
+                        Again, we generated a long random password to use for clients that can only consume from our topics.
+                    </p>
+                    <pre>{
+    "username": "consumer",
+    "password": "RUkSRjUF6Nlw9420CCW50s3tdRTf3jq8R6Z0HQbneeUs8MiXtQ447OC003R538Nr"
+}</pre>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-055.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-055.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We used the same new encryption key that we created for the consumer secret.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-056.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-056.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We had to give it a name with the same <code>AmazonMSK_</code> prefix, so we went with the name <code>AmazonMSK_consumer</code>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-057.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-057.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        With these two secrets, our credentials were now ready.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-058.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-058.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We associated both of them with our MSK cluster.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-059.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-059.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We clicked <strong>Associate secrets</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-060.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-060.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        With authentication prepared, we were ready to modify the MSK configuration to allow public access to the Kafka cluster.
+                    </p>
+                    <p>
+                        First, we needed to modify the cluster configuration to set a property that Amazon requires for public access. We went to the Amazon MSK Cluster Configurations, clicked on our config name, then clicked <strong>Create revision</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-061.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-061.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We modified the following value:
+                    </p>
+                    <pre>allow.everyone.if.no.acl.found=false</pre>
+                    <p>
+                        And then clicked <strong>Create revision</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-062.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-062.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        To use this modified configuration, we went back to the MSK cluster, and clicked on it.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-063.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-063.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We selected <strong>Edit cluster configuration</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-064.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-064.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We could then choose the new config revision, and click <strong>Save changes</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-065.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-065.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        This can take ten minutes or so to complete.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-066.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-066.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Once this was complete, we clicked the <strong>Properties</strong> tab.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-067.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-067.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We scrolled to the <strong>Networking settings</strong> section, and selected the <strong>Edit public access</strong> option.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-068.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-068.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We enabled <strong>Turn on</strong> and clicked <strong>Save changes</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-069.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-069.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        There was a bit of a wait for this change to be applied.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-070.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-070.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        After thirty minutes, the configuration change was complete.
+                    </p>
+                    <p>
+                        We now had an Amazon MSK cluster, with the topics we wanted to use, configured to allow public access, and with two SASL/SCRAM usernames/passwords prepared for our applications to use.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        We started an app producing events to the Amazon MSK topics we'd created.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-071.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-071.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        First, we needed to modify our MSK cluster to allow connections from an app we would run on our laptop.
+                    </p>
+                    <p>
+                        We went back to our MSK cluster instance, clicked on to the <strong>Properties</strong> tab, and scrolled to the <strong>Networking settings</strong> section.
+                    </p>
+                    <p>
+                        We then clicked on the <strong>Security groups applied</strong> value.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-072.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-072.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        On the security groups instance page, we clicked <strong>Edit inbound rules</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-073.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-073.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to add a new rule for access to the Kafka port, <code>9196</code>.
+                    </p>
+                    <p>
+                        We could have added the specific source IP address for where we would run our app, but it was simpler for this quick demo to just allow access from applications running anywhere.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-074.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-074.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Our MSK cluster was now ready to allow connections.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-075.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-075.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        To produce messages to our topics, we used a Kafka Connect connector. You can find the source connector we used at <a href="https://github.com/IBM/kafka-connect-loosehangerjeans-source/">github.com/IBM/kafka-connect-loosehangerjeans-source</a>. It is a data generator that periodically produces randomly generated messages, that we often use for giving demos.
+                    </p>
+                    <p>
+                        To run Kafka Connect, we created a properties file called <code>connect.properties</code>.
+                    </p>
+                    <p>
+                        We populated this with the following config. Note that the <code>plugin.path</code> location is a folder where we downloaded the source connector jar to - you can find the jar in <a href="https://github.com/IBM/kafka-connect-loosehangerjeans-source/releases">the Releases page</a> for the data gen source connector.
+                    </p>
+                    <pre>bootstrap.servers=b-1-public.loosehangermsk.krrnez.c3.kafka.eu-west-1.amazonaws.com:9196
+
+security.protocol=SASL_SSL
+producer.security.protocol=SASL_SSL
+
+sasl.mechanism=SCRAM-SHA-512
+producer.sasl.mechanism=SCRAM-SHA-512
+
+sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="producer" password="BE9rEMxwfC0eD7IQcVzC4s9csceBsKi3Enzi2wiY9B8uw73KsoNyR33vfFBKFozv";
+producer.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="producer" password="BE9rEMxwfC0eD7IQcVzC4s9csceBsKi3Enzi2wiY9B8uw73KsoNyR33vfFBKFozv";
+
+client.id=loosehanger
+group.id=connect-group
+
+key.converter=org.apache.kafka.connect.storage.StringConverter
+value.converter=org.apache.kafka.connect.json.JsonConverter
+key.converter.schemas.enable=false
+value.converter.schemas.enable=false
+offset.storage.file.filename=/tmp/connect/offsets
+plugin.path=/Users/dalelane/dev/demos/aws/connect/jars</pre>
+
+                    <p>
+                        We then created a properties file called <code>connector.properties</code> with the following config.
+                    </p>
+                    <p>
+                        (You can see the other options we could have set in the <a href="https://github.com/IBM/kafka-connect-loosehangerjeans-source/blob/main/README.md">connector README</a>).
+                    </p>
+                    <pre>name=msk-loosehanger
+connector.class=com.ibm.eventautomation.demos.loosehangerjeans.DatagenSourceConnector</pre>
+                    <p>
+                        We ran it using <code>connect-standalone.sh</code>. (This is a script included in the bin folder of the Apache Kafka zip you can download from kafka.apache.org).
+                    </p>
+                    <pre>connect-standalone.sh connect.properties connector.properties</pre>
+                    <p>
+                        We left this running to create a live stream of events that we could use for demos.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        We now had streams of events on MSK topics, ready to process using IBM Event Processing.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-076.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-076.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We started by following the <strong>Transform events to create or remove properties</strong> tutorial from <a href="https://ibm.github.io/event-automation/tutorials/guided/tutorial-2">ibm.github.io/event-automation/tutorials</a>.
+                    </p>
+                    <p>
+                        We were running an instance of <strong>IBM Event Processing</strong> in an OpenShift cluster in IBM Cloud. (For details of how we deployed this, you can see the <a href="https://ibm.github.io/event-automation/tutorials/guided/tutorial-0">first step in the tutorial instructions</a>. It just involved running an ansible playbook).
+                    </p>
+                    <p>
+                        We started by logging on to the Event Processing authoring dashboard.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-077.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-077.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        And we started to create a new flow.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        We created an event source in Event Processing using an Amazon MSK topic.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-078.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-078.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We went to the MSK instance page, and clicked <strong>View client information</strong>. From there, we copied the <strong>public</strong> bootstrap address.
+                    </p>
+                    <p>
+                        We pasted that into the <strong>Server</strong> box in the event source configuration page. We needed to split up the comma-separated address we got from the Amazon MSK page, as Event Processing requires separate broker addresses.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-079.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-079.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We provided the consumer credentials we created earlier when setting up the MSK cluster.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-080.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-080.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The list of topics displayed in Event Processing matches the list of topics that we configured the consumer user to have access to.
+                    </p>
+                    <p>
+                        Following the <a href="https://ibm.github.io/event-automation/tutorials/guided/tutorial-2#step-2--provide-a-source-of-events">tutorial instructions</a>, we chose the ORDERS.NEW topic.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-081.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-081.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We copied in a sample message from the ORDERS.NEW topic.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Finally, we created an event processing flow using the events from an MSK topic.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-082.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-082.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We continued to create the flow as described in <a href="https://ibm.github.io/event-automation/tutorials/guided/tutorial-2#step-3--define-the-transformation">the tutorial instructions</a>.
+                    </p>
+                    <p>
+                        All of the <a href="https://ibm.github.io/event-automation/tutorials/">Event Processing tutorials</a> can be followed as written using the Amazon MSK cluster that we created.
+                    </p>
+                </details>
+            </details>
+        </div>
+        <div>
+            <p>
+                <a href="./diagrams/eem.svg" target="diagrams"><img alt="using Event Endpoint Management with Amazon MSK" class="arch-diagram" src="./diagrams/eem.svg"/></a>
+            </p>
+            <p class="scenario-intro">
+                Next, we demonstrated the value that <strong>Event Endpoint Management</strong> can bring to an Amazon MSK cluster. We showed how adding MSK topics to a self-service catalog enables sharing and reuse of existing topics, wherever they are hosted. And we showed the way that the addition of an Event Gateway can maintain control and governance of these topics as they are shared.
+            </p>
+            <p>
+                The diagram above is a simplified description of what we created. We used the same MSK cluster in AWS that we had used for the previous demo, as it already had a variety of topics and a data generator producing live streams of events to them. This time we used it with an instance of Event Endpoint Management (that was running in our Red Hat OpenShift cluster in IBM Cloud).
+            </p>
+            <p>
+                We added our Amazon MSK topics to the catalog, and configured an Event Gateway to govern access to them. We could have run the Event Gateway in OpenShift, alongside the endpoint manager. However, for this demonstration, we wanted to show the flexibility of running the Event Gateway in the same environment as a Kafka cluster. This showed how you can remove the need for egress from the AWS environment where your Kafka applications are also running in AWS.
+            </p>
+            <p>
+                Finally, we showed all of this in action by running a Kafka consumer, consuming events from the MSK topics. The consumer was using credentials created in the Event Endpoint Management catalog and connected via the Event Gateway.
+            </p>
+            <details class="scenario">
+                <summary>
+                    How we created a demonstration of this...
+                </summary>
+                <details class="step">
+                    <summary>
+                        We started by creating a security group (for the load balancer that would provide the external connection for the Event Gateway).
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-083.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-083.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We started by going to the <strong>Security Groups</strong> section of the EC2 service in AWS.
+                    </p>
+                    <p>
+                        We clicked <strong>Create security group</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-084.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-084.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We created a security group that would accept connections on port <code>443</code>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-085.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-085.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Next, we went to the IP <strong>Target groups</strong> page and clicked <strong>Create target group</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-086.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-086.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose <strong>IP addresses</strong> as the target type, and gave it a name that explained this would be the target address for the Event Gateway.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-087.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-087.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose port <code>443</code>. Other port numbers would have been fine, but this is consistent with the port number used to access the Event Gateway when it is running in OpenShift.
+                    </p>
+                    <p>
+                        For the <strong>VPC</strong>, we chose the same VPC that the MSK cluster is in.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-088.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-088.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Next, we defined a healthcheck. Again, we did this to be consistent with the way the Event Gateway runs when managed by the Operator in OpenShift, by using the same protocol (<code>HTTP</code>), port number (<code>8081</code>), and path (<code>/ready</code>) that are used for probes in Kubernetes.
+                    </p>
+                    <p>
+                        Then we clicked <strong>Next</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-089.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-089.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-090.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-090.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The default values are fine for the next <strong>Register targets</strong> step, so we clicked <strong>Create target group</strong>.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Then, we created the network load balancer to give the Event Gateway an external address.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-091.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-091.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We started by going to the <strong>Load balancers</strong> page within EC2, and clicked <strong>Create load balancer</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-092.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-092.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose <strong>Network Load Balancer</strong> and clicked <strong>Create</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-093.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-093.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave it a name, and made it <strong>Internet-facing</strong> because we wanted the event gateway to be accessible from outside of AWS.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-094.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-094.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We selected one of the three availability zones created when we set up the MSK cluster to put the gateway in.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-095.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-095.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Then we selected security groups for the load balancer to use: the security group created for the MSK cluster, and the new one created for the gateway.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-096.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-096.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        That was everything we needed, so we clicked <strong>Create load balancer</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-097.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-097.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        It took a little while to complete the setup.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-098.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-098.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We waited for it to no longer be in a <strong>Provisioning</strong> state before continuing.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Now that we had an external DNS address, we could create a certificate for the Event Gateway.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-099.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-099.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We clicked into the network load balancer that we'd just created to view the DNS name that we would give to the gateway.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-100.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-100.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We'd installed IBM Event Endpoint Management using the <a href="https://ibm.github.io/event-automation/tutorials/guided/tutorial-0">demo ansible playbook</a>. This setup uses a Kubernetes Certificate Manager in OpenShift to setup the SSL/TLS certs needed. This meant the issuer and CA we needed to create a certificate for the Event Gateway we would run in AWS was in OpenShift.
+                    </p>
+                    <p>
+                        Our next step was to go into OpenShift so that we could create a new cert.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-101.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-101.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We just needed to copy the <strong>DNS name</strong> for the gateway to use in the cert.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-102.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-102.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        That gave us what we needed to create the certificate.
+                    </p>
+                    <p>
+                        Notice that we used the DNS name in two places: <code>spec.dnsNames</code> and <code>spec.uris</code>. You can see more information about the requirements for this certificate in the <a href="https://ibm.github.io/event-automation/eem/installing/standalone-gateways/#event-gateway-client-certificate">Event Endpoint Management documentation</a>.
+                    </p>
+                    <pre>apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+    name: amazon-eem-gw-cert
+    namespace: event-automation
+spec:
+    dnsNames:
+    - loosehanger-event-gateway-68367c28f6f6c440.elb.eu-west-1.amazonaws.com
+    duration: 2160h0m0s
+    issuerRef:
+        kind: Issuer
+        name: my-eem-gateway-ibm-egw-iss
+    privateKey:
+        algorithm: RSA
+        rotationPolicy: Always
+    secretName: amazon-eem-gw-cert
+    subject:
+        organizations:
+        - IBM Event Endpoint Management
+    uris:
+    - egw://loosehanger-event-gateway-68367c28f6f6c440.elb.eu-west-1.amazonaws.com:443/amazon-gateways/eu-west-1a
+    usages:
+    - client auth
+    - digital signature
+    - server auth</pre>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-103.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-103.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The cert manager created the certificate based on this spec, and stored it in a Kubernetes secret in the <code>event-automation</code> namespace where Event Endpoint Management was running.
+                    </p>
+                    <p>
+                        We downloaded <code>ca.crt</code>, <code>tls.crt</code>, and <code>tls.key</code> to three files that would be needed to run the gateway.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        To make the certificates available to the Event Gateway we would run in AWS, we created a container image that would hold the certificates.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-104.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-104.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We decided to use a custom container image to hold the certificates that we'd just created. We wanted to store this as a private image in Amazon's container registry, so we went to the ECR service in AWS.
+                    </p>
+                    <p>
+                        Then we clicked <strong>Get started</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-105.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-105.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose the repository name <code>event-gateway-certs</code> and set the visibility to <strong>Private</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-106.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-106.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        That gave us an image name that we could push a container image to. We clicked on the <strong>View push commands</strong> button to get the details for this.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-107.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-107.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        First we needed to copy the login command.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-108.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-108.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We used this to build and push a custom container image to ECR. Our <a href="https://github.com/dalelane/event-automation-msk-demo/blob/main/certs-image/Dockerfile">Dockerfile</a> looked like this:
+                    </p>
+                    <pre>FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+COPY ca.crt /certs/eem/ca.pem
+COPY tls.crt /certs/eem/client.pem
+COPY tls.key /certs/eem/client.key
+COPY tls.crt /certs/eem/egwclient.pem
+COPY tls.key /certs/eem/egwclient-key.pem
+
+VOLUME ["/certs"]</pre>
+                    <p>
+                        The role of this container image would simply be to make the certificate files that we had downloaded in the previous step available to the Event Gateway.
+                    </p>
+                    <p>
+                        More information about the certificate file names we used, and the way these files would be used, can be found in the <a href="https://ibm.github.io/event-automation/eem/installing/standalone-gateways/#certificates">documentation for running stand-alone Event Gateways</a>.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        We then created another security group, this time for the Event Gateway.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-109.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-109.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The previous security group we had created was for the network load balancer that would provide the external address for the Event Gateway. That was a security group that needed to allow connections from external clients.
+                    </p>
+                    <p>
+                        Now we needed to create a security group for the Event Gateway container itself, which would need to receive connections from the load balancer, and make connections to the Amazon MSK cluster.
+                    </p>
+                    <p>
+                        We started by going back to the <strong>Security Groups</strong> page.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-110.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-110.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave the security group a name that explained what this would be used for.
+                    </p>
+                    <p>
+                        We defined two inbound rules.
+                    </p>
+                    <p>
+                        The first was for the healthcheck address we had defined previously. This does not return sensitive data, so we allowed connections to this from anywhere, which would allow both the load balancer and ECS to use the healthcheck.
+                    </p>
+                    <p>
+                        The second was for the port used for Kafka traffic coming from the network load balancer, so we specified the <code>8092</code> port number and the security group for the network load balancer.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-111.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-111.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The security group was now ready to use.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        We created a task definition for running the Event Gateway in ECS.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-112.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-112.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We went to the Elastic Container Service next, to start creating a new task definition for the Event Gateway.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-113.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-113.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave our task definition the name <code>loosehanger-event-gateway</code>.
+                    </p>
+                    <p>
+                        We opted for a launch type of <strong>AWS Fargate</strong> as that was a serverless option that would let us run the Event Gateway when it was being used.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-114.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-114.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose <strong>Linux/X86/64</strong> and a relatively small task size for our quick demo.
+                    </p>
+                    <p>
+                        We also needed to create a <strong>Task execution role</strong> to run the container. It needed to be able to pull the Event Gateway from the IBM Entitled Registry, so the task execution role needed to have access to credentials for this.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-115.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-115.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        To enable this, we opened the <strong>AWS Secrets Manager</strong> so that we could <strong>Store a new secret</strong> to hold an Entitled Registry pull secret.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-116.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-116.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We created a new entitlement key from <a href="https://myibm.ibm.com/products-services/containerlibrary">myibm.ibm.com/products-services/containerlibrary</a>.
+                    </p>
+                    <p>
+                        We used this to create a new <strong>Other type of secret</strong> using the <strong>Plaintext</strong> tab to create a secret like this:
+                    </p>
+                    <pre>{
+    "username": "cp",
+    "password": "our-entitled-registry-key"
+}</pre>
+                    <p>
+                        Note that your entitled registry key is a password that you shouldn't share publicly. The key you can see in the screenshot above has since been revoked.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-117.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-117.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We encrypted this secret using the encryption key that we'd created earlier.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-118.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-118.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave the secret a helpful description to remind us what this secret contains.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-119.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-119.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        The secret was ready to use. To use it in our task definition, we clicked into the instance to get the ARN for it.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-120.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-120.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We copied the <strong>ARN</strong> for the secret - so that we could add this to the container definition as the pull secret.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-121.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-121.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Back in the ECS task definition, we started filling in the details of the Event Gateway container.
+                    </p>
+                    <p>
+                        As described in the <a href="https://ibm.github.io/event-automation/eem/installing/standalone-gateways/#configuration-options">Event Endpoint Management documentation for installing a stand-alone gateway</a>, we needed to use an <strong>Image URI</strong> of <code>cp.icr.io/cp/ibm-eventendpointmanagement/egw:11.0.5</code>
+                    </p>
+                    <p>
+                        We marked this as an <strong>Essential container</strong>, and added two port mappings: one for the healthcheck, and one for Kafka traffic.
+                    </p>
+                    <p>
+                        We pasted the pull secret <strong>ARN</strong> in for pulling the Event Gateway image.
+                    </p>
+                    <p>
+                        The ID of this isn't sufficient for it to be used - the task execution role also needed permission to access the pull secret and decrypt it.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-138.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-138.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        To do this, once the task execution role was created, we needed to attach some additional policies. Firstly, we needed to give it permission to pull our custom private certificates image from ECR.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-139.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-139.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        In order for the task execution role to decrypt the Entitled Registry pull secret, we needed to give it details of the <strong>loosehanger-keys</strong> encryption key we'd created earlier. We started by getting the <strong>ARN</strong> for this key.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-140.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-140.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        In order to pull the Event Gateway image from the Entitled Registry, the task execution role needs to be access:
+                    </p>
+                    <p>* the Entitled Registry we'd stored in Secrets Manager</p>
+                    <p>* the decryption key needed to be able to decrypt that secret</p>
+                    <p>
+                        We added the ARNs for both of these to a custom permissions policy.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-122.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-122.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Finally, we needed to set some environment variables to add to the Event Gateway container. To get the right values for this, we returned to the Event Endpoint Management manager in OpenShift.
+                    </p>
+                    <p>
+                        We needed to copy the <strong>API</strong> endpoint URI.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-123.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-123.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        This provided the value for the <code>backendURL</code> environment variable, which we set to <code>https://my-eem-manager-ibm-eem-gateway-event-automation.itzroks-120000f8p4-ivahj5-6ccd7f378ae819553d37d5f2ee142bd6-0000.eu-gb.containers.appdomain.cloud</code>
+                    </p>
+                    <p>
+                        We set the value of the <code>GATEWAY_PORT</code> environment variable to <code>8092</code> as that is the port number we had chosen for Kafka traffic in the port mappings.
+                    </p>
+                    <p>
+                        We set the value of the <code>GATEWAY_HEALTH_PORT</code> environment variable to <code>8081</code> as that is the port number we had chosen for the healthcheck in the port mappings.
+                    </p>
+                    <p>
+                        We set the value of the <code>KAFKA_ADVERTISED_LISTENER</code> environment variable to <code>loosehanger-event-gateway-68367c28f6f6c440.elb.eu-west-1.amazonaws.com:443</code> as it was the DNS name we had created for the Event Gateway load balancer.
+                    </p>
+                    <p>
+                        We set the value of the <code>certPaths</code> environment variable to this, as it matched the locations we'd created in the custom certs container we had built.
+                    </p>
+                    <pre>/certs/eem/client.pem,/certs/eem/client.key,/certs/eem/ca.pem,/certs/eem/egwclient.pem,/certs/eem/egwclient-key.pem</pre>
+                    <p>
+                        Finally, we added a few additional environment variables to match the way the gateway is run when managed by the Operator in OpenShift.
+                    </p>
+                    <pre>GATEWAY_REGISTRATION_SPEC_LOCATION
+/opt/ibm/gateway/openapi-specs/gw-director-openapi.yaml
+
+externalGatewayConfigJsonFile
+/config/gatewayConfig.json
+
+features
+eemgw,core</pre>
+                    <p>
+                        These were all of the environment variables that we needed.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-124.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-124.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We enabled logging, as it can be useful when identifying what the gateway is doing.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-125.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-125.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We defined a healthcheck action (a <code>curl</code> of the gateway's readiness URL) for the container. Again, we were following the pattern for the probes that are set up when the Operator runs the Event Gateway in Kubernetes.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-126.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-126.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Finally, we needed to add the certificates we created for the gateway available by adding the custom certificates container we built as a secondary container.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-127.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-127.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave the certs container a command so that ECS wouldn't treat it as a crashed container. We didn't need this container to run anything, we just needed it to share a volume with the Event Gateway.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-128.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-128.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We achieved this by giving the gateway container read-only access to the storage from the certificates container.
+                    </p>
+                    <p>
+                        This was everything we needed to complete the task specification, so at this point we clicked <strong>Create</strong>.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Now we were ready to create an ECS cluster to run our Event Gateway task.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-129.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-129.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We were ready to run the Event Gateway task, so we went to the <strong>Clusters</strong> page in ECS and clicked <strong>Create cluster</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-130.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-130.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We defined a <strong>Fargate</strong> cluster and gave it a name.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-131.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-131.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Then we waited it for it to be provisioned.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-132.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-132.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Once it was ready, we clicked into the cluster instance, went to the <strong>Services</strong> tab, and clicked the <strong>Create</strong> button.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-133.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-133.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        For the compute options, we opted for the <strong>Launch type</strong> compute option - as we only wanted to run a single instance of the gateway.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-134.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-134.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose our Event Gateway task definition, and gave the service a name.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-135.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-135.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose the same availability zone to run the Event Gateway in that we'd chosen when creating the network load balancer.
+                    </p>
+                    <p>
+                        Then we chose the security group we had created for the gateway container.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-136.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-136.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We chose the load balancer we had created for the gateway.
+                    </p>
+                    <p>
+                        For the listener, we used the listener we had defined when creating the load balancer.
+                    </p>
+                    <p>
+                        Finally, we clicked <strong>Create</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-137.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-137.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Now we just needed to wait for the Event Gateway to start.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        We verified that the Event Gateway running in AWS had connected to the Endpoint manager running in OpenShift.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-141.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-141.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        A good way to know when the Event Gateway is ready is to check the <strong>Gateways</strong> tab in the Event Endpoint Management manager. We could see our new Event Gateway listed in the table (alongside the existing Event Gateway we had created in OpenShift in IBM Cloud).
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        We could now start adding Amazon MSK topics to the Event Endpoint Management catalog.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-142.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-142.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        First, we went to the topics tab in the Event Endpoint Management manager.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-143.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-143.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to add the Amazon MSK cluster first, so we clicked <strong>Add new cluster</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-144.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-144.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave this new Kafka cluster a name: <code>Amazon MSK</code>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-145.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-145.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to get the bootstrap address for the MSK cluster, using the same <strong>View client information</strong> button as before. Note that we needed to split the public bootstrap address we got from Amazon into separate broker addresses.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-146.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-146.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to accept the certificates when prompted.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-147.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-147.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We used the consumer credentials that we had created for the MSK cluster, which had permission to consume from all of our application topics.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-148.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-148.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        With the credentials accepted, we were now ready to start adding topics.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-149.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-149.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We confirmed that all of the topics our consumer credentials had access to were listed.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-150.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-150.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We selected all of them. We could have given them different aliases, but we decided to use the existing topic names as-is.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-151.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-151.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Our topics were now added to the catalog, ready for additional documentation and publishing.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-152.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-152.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        For each topic, we needed to write additional documentation.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-153.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-153.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We added a recent message from the topic as a sample, to make the catalog documentation more useful.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-154.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-154.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Finally, we could click <strong>Publish</strong>.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-155.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-155.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to choose the gateway groups we wanted to be able to consume this topic through. We chose only the Event Gateway running in AWS.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-156.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-156.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Our topic was published! We were now able to repeat this for our other Amazon MSK topics.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Finally, to show this all working, we created a Kafka consumer to receive events from Amazon MSK topics through the Event Gateway.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-157.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-157.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        From the Event Endpoint Management catalog, we could review what people finding our topics in the catalog would see.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-158.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-158.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        To show this in action, we created credentials for consuming from the topic.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-159.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-159.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        This gave us a unique username and password for consuming from this topic through the Event Gateway.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-160.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-160.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We clicked <strong>Download certificates</strong> to download the Event Gateway certificate as a PEM file.
+                    </p>
+                    <p>
+                        We copied the bootstrap address from the <strong>Servers</strong> section of the Catalog page.
+                    </p>
+                    <p>
+                        We put all of this: the location of the downloaded certificate file, the bootstrap address, and username and password we had generated from the Catalog, into a properties file. It looked like this:
+                    </p>
+                    <pre>bootstrap.servers=loosehanger-event-gateway-68367c28f6f6c440.elb.eu-west-1.amazonaws.com:443
+security.protocol=SASL_SSL
+sasl.mechanism=PLAIN
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="eem-582bdccb-f1b4-479d-940a-7480147e70b1" password="018c80b7-218b-4eed-a8f5-169d2cb64206";
+ssl.truststore.location=/Users/dalelane/Downloads/certificate_loosehanger-event-gateway-68367c28f6f6c440.elb.eu-west-1.amazonaws.com_443.pem
+ssl.truststore.type=PEM
+group.id=test-consumer-group
+enable.auto.commit=false</pre>
+                    <p>
+                        We could use this from <code>kafka-console-consumer.sh</code> to start consuming events through the Event Gateway.
+                    </p>
+                </details>
+            </details>
+        </div>
+        <div>
+            <p>
+                <a href="./diagrams/complete.svg" target="diagrams"><img alt="using Event Automation with Amazon MSK" class="arch-diagram" src="./diagrams/complete.svg"/></a>
+            </p>
+            <p class="scenario-intro">
+                Finally, we demonstrated how these could be <strong>combined</strong>, bringing the value of both the previous demonstrations together.
+            </p>
+            <p>
+                Making Amazon MSK topics available through a self-service catalog can enable much wider reuse of these streams of events. And providing a low-code authoring canvas for processing these events can extend this use beyond just developers, enabling both business and IT teams to define the scenarios they need to respond to.
+            </p>
+            <p>
+                For this final demonstration, we again used the same Amazon MSK cluster, with the same range of topics and live streams of events as before. We had already added these to the Event Endpoint Management catalog for the previous demo, so for this demonstration we showed how MSK topics found in the catalog can easily be used in Event Processing to quickly identify new real-time insights.
+            </p>
+            <details class="scenario">
+                <summary>
+                    How we created a demonstration of this...
+                </summary>
+                <details class="step">
+                    <summary>
+                        We demonstrated an Event Endpoint Management catalog can contain topics from many distributions of Kafka cluster, including topics from Amazon MSK.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-161.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-161.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We had published two of the topics so far to be able to demonstrate Event Endpoint Management.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-162.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-162.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        With them both available in the catalog, that was enough to demonstrate another of the Event Processing tutorials.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-184.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-184.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        First, we started by showing that we could still add topics to the catalog from non-MSK Kafka clusters. We clicked <strong>Add topic</strong> and then chose an <strong>Event Streams</strong> cluster.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-185.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-185.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        This was useful to show the benefits of aliases. If you have topics with the same name in different Kafka clusters, and want to add both to the catalog, aliases let you differentiate them.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-186.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-186.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        As the owner of the topic, we could see which topic(s) were hosted on which Kafka clusters.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-187.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-187.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        However, for someone finding the topics in the catalog, they all just look like Kafka topics. You can use tags to identify where the topics are from if you want developers to know, as we had done here.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Next, to process these topics using IBM Event Processing, we created a new flow.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-163.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-163.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We went back to the Event Processing UI, running in our OpenShift cluster in IBM Cloud.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-164.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-164.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We created a new event processing flow and gave it a name.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        We defined event sources based on Amazon MSK topics, using details from the Event Endpoint Management catalog.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-165.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-165.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We created an event source, using the bootstrap address we copied from the Event Endpoint Management catalog page.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-166.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-166.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to accept the certificates as before.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-167.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-167.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We used credentials that we created in the Event Endpoint Management catalog.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-168.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-168.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Then we confirmed the topic name.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-169.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-169.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We provided the sample message from the catalog to give Event Processing information about the properties of messages on this topic.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-170.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-170.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Then we started repeating this to add another event source.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-171.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-171.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        This second event source was also based on an Amazon MSK topic, that we discovered in the Event Endpoint Management catalog and accessed via the Event Gateway running in AWS.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-172.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-172.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Again, we provided the bootstrap address for the Event Gateway that we copied from the catalog page.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-173.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-173.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We needed to confirm the certificates.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-174.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-174.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We used the Event Endpoint Management catalog to generate credentials unique for this second topic.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-175.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-175.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We added these credentials to the Event Processing configuration.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-176.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-176.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Then we confirmed the topic name.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-177.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-177.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        And finally provided the sample message to give Event Processing info about the properties of messages on this second topic.
+                    </p>
+                </details>
+                <details class="step">
+                    <summary>
+                        Finally, we added an interval join to correlate events from these two MSK topics.
+                        <span class="icon">&#9654;</span>
+                    </summary>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-178.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-178.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We used an <strong>Interval join</strong> to join these two MSK topics.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-179.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-179.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We gave this join a name.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-180.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-180.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We used the assistant to help us identify the attributes of each stream of events that we could join on.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-181.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-181.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        We used the visualisation to help us specify the join window.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-182.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-182.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Then we chose, and named, the attributes from each stream of events that we wanted to output.
+                    </p>
+                    <div class="screenshot">
+                        <div>
+                            <a href="./screenshots/large/msk-183.png" target="screenshots"><img loading="lazy" src="./screenshots/small/msk-183.png"/></a>
+                        </div>
+                        <div class="imagetext">click on the image to enlarge</div>
+                    </div>
+                    <p>
+                        Finally, to show everything working, we ran the flow and viewed the results.
+                    </p>
+                </details>
+            </details>
+        </div>
+        <div>
+            <p>
+                Our goal with this blog post was to demonstrate what can be done with <a href="https://www.ibm.com/products/event-automation">IBM Event Automation</a>, with a particular focus on the benefits of composability. By taking advantage of the de-facto standard nature of the Kafka protocol, we can layer additional capabilities on top of Apache Kafka clusters, wherever they are running.
+            </p>
+            <p>
+                Our demonstrations were intended to provide an illustrative example of using Event Automation with MSK. It was absolutely not meant to be a description of how to use Amazon services in a perfect or optimum way, but instead focused on a quick and simple way to show what is possible. We wanted to inspire you for how you could get more out of your own Amazon MSK cluster.
+            </p>
+            <p>
+                For more information about any of the ideas that we have shared here, please see the <a href="https://ibm.github.io/event-automation/">Event Automation documentation</a>, or get in touch with us.
+            </p>
+        </div>
+        <hr/>
+        <small>Amazon Web Services (AWS), Amazon Managed Streaming for Kafka (MSK), Amazon Elastic Compute Cloud (EC2), Amazon Elastic Container Service (ECS), Amazon Elastic Container Registry (ECR) are trademarks of Amazon Web Services. This blog post is intended to explain how we demonstrated the use of these services, but does not imply any affiliation with, or endorsement by, Amazon or AWS. </small>
+        <hr/>
+    </body>
+</html>
